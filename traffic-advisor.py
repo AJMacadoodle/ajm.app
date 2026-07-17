@@ -13,28 +13,65 @@ def load_model():
 
 generator = load_model()
 
-# User interface inputs
-user_query = st.text_input(
-    "Describe your traffic situation or ask a question:",
-    placeholder="e.g., I am stuck in heavy rain on the highway. What should I do?"
-)
+# 1. User Inputs for Factors & Preferences
+st.subheader("📋 Trip Details")
+col1, col2 = st.columns(2)
 
-max_length = st.slider("Response length (tokens):", min_value=20, max_value=150, value=60)
+with col1:
+    route = st.text_input("Departure & Destination:", placeholder="e.g., Downtown to Airport")
+    weather = st.selectbox("Current Weather:", ["Clear Sky", "Heavy Rain", "Snow/Ice", "Foggy"])
+    departure_time = st.time_input("Planned Departure Time:")
 
-# Generate and display advice
-if st.button("Get AI Advice"):
-    if user_query:
-        with st.spinner("Analyzing traffic situation..."):
-            # Clean text generation settings
-            results = generator(
-                user_query, 
-                max_length=max_length, 
-                num_return_sequences=1,
-                truncation=True
+with col2:
+    priority = st.selectbox("User Preference:", ["Fastest Route", "Avoid Tolls", "Eco-Friendly / Transit"])
+    is_peak = st.checkbox("Is this during local rush hour? (e.g., 7-9 AM, 4-6 PM)")
+
+# 2. Rule-Based Heuristics (Estimating Delays)
+base_delay = 0
+alternatives = []
+
+if is_peak:
+    base_delay += 25
+    alternatives.append("Departing 1 hour later to skip the rush hour peak.")
+
+if weather == "Heavy Rain":
+    base_delay += 15
+    alternatives.append("Using the highway route instead of local backroads prone to flooding.")
+elif weather == "Snow/Ice":
+    base_delay += 35
+    alternatives.append("Taking the local Subway/Train network to ensure maximum safety.")
+elif weather == "Foggy":
+    base_delay += 10
+
+# 3. Generate Smart Advisor Response
+if st.button("Analyze Best Travel Time"):
+    if route:
+        with st.spinner("Calculating optimal travel window..."):
+            # Construct a structured prompt for GPT-2
+            prompt = (
+                f"Route: {route}. Weather: {weather}. Preference: {priority}. "
+                f"Estimated Traffic Delay: {base_delay} minutes. "
+                f"Therefore, the best driving advice for this trip is:"
             )
-            advice = results[0]["generated_text"]
             
-            st.subheader("🚦 Smart Advisor Suggestion:")
-            st.write(advice)
+            results = generator(prompt, max_length=150, num_return_sequences=1, truncation=True)
+            ai_advice = results[0]["generated_text"][len(prompt):].strip()
+            
+            # Display Results
+            st.markdown("---")
+            st.subheader("🚦 Advisor Assessment")
+            
+            # Metric Callouts
+            st.metric(label="Estimated Added Delay", value=f"{base_delay} mins")
+            
+            # Alternatives Section
+            if alternatives:
+                st.markdown("**💡 Recommended Alternatives:**")
+                for alt in alternatives:
+                    st.write(f"- {alt}")
+            
+            # AI Synthesis
+            st.markdown("**🤖 AI Travel Synthesis:**")
+            st.write(ai_advice if ai_advice else "Drive safely and maintain extra stopping distance.")
     else:
-        st.warning("Please enter a traffic scenario first.")
+        st.warning("Please enter your departure and destination route.")
