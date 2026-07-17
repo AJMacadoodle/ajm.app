@@ -3,7 +3,7 @@ from transformers import pipeline
 
 st.set_page_config(page_title="📖 AI Story Generator", page_Icon="📕")
 st.title("📖 AI Story Generator")
-st. write("Generate creative stories using GPT-2")
+st.write("Generate creative stories using GPT-2")
 
 
 # Load GPT-2 only once
